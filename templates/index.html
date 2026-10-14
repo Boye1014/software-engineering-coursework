@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>目标检测工作台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body data-model="{{ model_name }}" data-device="{{ device }}">
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark"><span></span><span></span><span></span></div>
+                <div>
+                    <strong>VISION LAB</strong>
+                    <small>目标检测工作台</small>
+                </div>
+            </div>
+
+            <div class="side-section">
+                <p class="eyebrow">WORKSPACE</p>
+                <div class="side-nav active"><span class="nav-icon">◈</span>检测任务</div>
+                <div class="side-nav" id="historyNav"><span class="nav-icon">◷</span>历史记录 <span class="nav-count" id="historyCount">0</span></div>
+            </div>
+
+            <div class="side-section side-bottom">
+                <p class="eyebrow">RUNTIME</p>
+                <div class="runtime-card">
+                    <div class="status-dot"></div>
+                    <div>
+                        <strong>模型已就绪</strong>
+                        <span>{{ model_name }}</span>
+                    </div>
+                </div>
+                <div class="runtime-meta">
+                    <span>运行设备</span>
+                    <b id="deviceLabel">{{ device }}</b>
+                </div>
+                <div class="runtime-meta">
+                    <span>支持输入</span>
+                    <b>图片 / 视频</b>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow">OBJECT DETECTION / LOCAL INFERENCE</p>
+                    <h1>把画面交给模型，<em>让目标显形。</em></h1>
+                </div>
+                <div class="topbar-badge"><span class="pulse"></span>本地安全处理</div>
+            </header>
+
+            <section class="intro-grid">
+                <div class="intro-copy">
+                    <p class="lead">上传一张图片或一段短视频，模型会在本地完成检测、标注与结果归档。</p>
+                    <div class="feature-row">
+                        <span><i>01</i>图片检测</span>
+                        <span><i>02</i>视频逐帧</span>
+                        <span><i>03</i>结果可下载</span>
+                    </div>
+                </div>
+                <div class="model-chip">
+                    <span class="chip-label">ACTIVE MODEL</span>
+                    <strong>{{ model_name }}</strong>
+                    <small>Ultralytics YOLO · local</small>
+                </div>
+            </section>
+
+            <section class="workspace-grid">
+                <div class="panel detection-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <p class="eyebrow">NEW DETECTION</p>
+                            <h2>创建检测任务</h2>
+                        </div>
+                        <span class="step-label">STEP 01 / 03</span>
+                    </div>
+
+                    <div class="tabs" role="tablist">
+                        <button class="tab active" type="button" data-kind="image"><span>▧</span> 图片检测</button>
+                        <button class="tab" type="button" data-kind="video"><span>▶</span> 视频检测</button>
+                    </div>
+
+                    <form id="detectForm">
+                        <label class="dropzone" id="dropzone" for="fileInput">
+                            <input id="fileInput" type="file" name="file" accept="image/*">
+                            <div class="upload-icon">↥</div>
+                            <strong id="dropTitle">拖拽图片到这里，或点击选择</strong>
+                            <span id="dropHint">支持 JPG、PNG、WEBP，单个文件最大 512 MB</span>
+                            <div class="file-picked" id="filePicked"></div>
+                        </label>
+
+                        <div class="preview-wrap hidden" id="previewWrap">
+                            <div class="preview-label"><span>INPUT PREVIEW</span><button type="button" id="clearFile">移除文件</button></div>
+                            <img id="imagePreview" alt="输入图片预览">
+                            <video id="videoPreview" controls muted></video>
+                        </div>
+
+                        <div class="settings-block">
+                            <div class="settings-title">
+                                <span>检测参数</span>
+                                <small>可在每次任务中单独调整</small>
+                            </div>
+                            <div class="range-grid">
+                                <label class="range-field">
+                                    <div><span>置信度阈值</span><output id="confValue">0.25</output></div>
+                                    <input id="confInput" type="range" name="conf" min="0.01" max="0.99" step="0.01" value="0.25">
+                                    <small>过滤低于该分数的检测结果</small>
+                                </label>
+                                <label class="range-field">
+                                    <div><span>NMS / IoU 阈值</span><output id="iouValue">0.45</output></div>
+                                    <input id="iouInput" type="range" name="iou" min="0.01" max="0.99" step="0.01" value="0.45">
+                                    <small>控制重叠框的筛选程度</small>
+                                </label>
+                            </div>
+
+                            <div class="class-field">
+                                <div class="class-field-head"><span>检测类别</span><small>可按需筛选</small></div>
+                                <div class="class-picker" id="classPicker" role="listbox" aria-label="可选检测类别">
+                                    {% for item in classes %}
+                                    <button type="button" class="class-option" data-class="{{ item.id }}" title="添加 {{ item.name }}">
+                                        <span class="class-option-id">{{ loop.index }}</span>
+                                        <span>{{ item.name }}</span>
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                                <div class="selected-head"><span>已选类别</span><button type="button" id="clearClasses">清空筛选</button></div>
+                                <div class="selected-classes empty" id="selectedClasses"><span>暂无手动筛选，默认检测核心类别</span></div>
+                                <div id="selectedInputs"></div>
+                            </div>
+                        </div>
+
+                        <button class="primary-button" id="submitButton" type="submit">
+                            <span class="button-icon">✦</span><span id="submitText">开始图片检测</span><span class="button-arrow">→</span>
+                        </button>
+                        <p class="privacy-note">文件仅在本机临时处理，检测完成后原始上传文件会自动清理。</p>
+                    </form>
+                </div>
+
+                <div class="panel result-panel" id="resultPanel">
+                    <div class="panel-heading">
+                        <div>
+                            <p class="eyebrow">OUTPUT</p>
+                            <h2>检测结果</h2>
+                        </div>
+                        <span class="step-label" id="resultStatus">WAITING</span>
+                    </div>
+
+                    <div class="result-empty" id="resultEmpty">
+                        <div class="empty-art"><span></span><span></span><span></span><span></span></div>
+                        <strong>结果会显示在这里</strong>
+                        <p>上传文件并开始检测后，带框图片或视频将在此处预览。</p>
+                    </div>
+
+                    <div class="result-content hidden" id="resultContent">
+                        <div class="result-media" id="resultMedia"></div>
+                        <div class="result-summary" id="resultSummary"></div>
+                        <div class="detection-list" id="detectionList"></div>
+                        <div class="result-actions">
+                            <a class="secondary-button" id="downloadButton" href="#" download><span>⇩</span> 下载结果</a>
+                            <button class="secondary-button" id="newTaskButton" type="button"><span>＋</span> 新建任务</button>
+                        </div>
+                    </div>
+                    <div class="loading-state hidden" id="loadingState">
+                        <div class="loader"></div>
+                        <strong id="loadingTitle">模型正在处理…</strong>
+                        <span id="loadingHint">视频会按帧进行检测，请稍候</span>
+                        <div class="loading-progress hidden" id="loadingProgressWrap">
+                            <div class="progress-track"><span id="loadingProgressBar"></span></div>
+                            <div class="loading-progress-row">
+                                <strong id="loadingProgress">0%</strong>
+                                <span id="loadingFrames">正在读取视频信息…</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel history-panel" id="historyPanel">
+                <div class="panel-heading history-heading">
+                    <div>
+                        <p class="eyebrow">ARCHIVE</p>
+                        <h2>历史检测记录</h2>
+                    </div>
+                    <button class="text-button" type="button" id="refreshHistory">刷新记录 ↻</button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div class="history-empty">正在读取历史记录…</div>
+                </div>
+            </section>
+
+            <footer class="footer-note">VISION LAB · Local Object Detection System <span>·</span> Designed for Software Engineering Coursework</footer>
+        </main>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
