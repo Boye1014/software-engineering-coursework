@@ -1,3 +1,4 @@
+
 # Vision Lab：本地目标检测系统
 
 这是一个面向软件工程课程展示的本地 Web 目标检测系统。项目使用 Ultralytics YOLO11m 预训练模型，在浏览器中完成图片检测和视频逐帧检测，不需要额外训练即可运行。
@@ -32,7 +33,11 @@
 2. 一份 `yolo11m.pt` 权重文件，并放在项目根目录
 3. 能够访问 Python 包源的网络环境
 
-项目已经包含 `yolo11m.pt`。如果该文件被单独排除，请从 Ultralytics 官方渠道下载后放回项目根目录。
+模型权重没有直接放入 Git 历史，而是作为 GitHub Release 附件提供：
+
+- [下载 yolo11m.pt（Release）](https://github.com/Boye1014/software-engineering-coursework/releases/latest/download/yolo11m.pt)
+
+下载后请将 `yolo11m.pt` 放到项目根目录，与 `app.py` 同级。
 
 ## 快速开始
 
@@ -115,7 +120,7 @@ software/
 ├── static/style.css       # 页面样式
 ├── static/app.js          # 上传、进度轮询、交互和历史记录
 ├── requirements.txt       # Python 依赖
-├── yolo11m.pt             # 当前使用的 YOLO11m 权重
+├── yolo11m.pt             # 从 GitHub Release 下载后放在根目录
 ├── test_images/           # 图片测试素材及来源说明
 ├── test_videos/           # 视频测试素材及来源说明
 ├── test_yolo.py           # 单张图片独立测试脚本
