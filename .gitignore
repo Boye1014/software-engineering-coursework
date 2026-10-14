@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+detections.db
+uploads/*
+results/*
+!uploads/.gitkeep
+!results/.gitkeep
+runs/
+.DS_Store
+test.jpg
+yolov8n.pt
