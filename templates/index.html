@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body data-model="{{ model_name }}" data-device="{{ device }}">
+<body data-model="{{ active_model.id }}">
     <div class="app-shell">
         <aside class="sidebar">
             <div class="brand">
@@ -32,7 +32,7 @@
                     <div class="status-dot"></div>
                     <div>
                         <strong>模型已就绪</strong>
-                        <span>{{ model_name }}</span>
+                        <span id="sideModelLabel">{{ active_model.id }}</span>
                     </div>
                 </div>
                 <div class="runtime-meta">
@@ -66,8 +66,8 @@
                 </div>
                 <div class="model-chip">
                     <span class="chip-label">ACTIVE MODEL</span>
-                    <strong>{{ model_name }}</strong>
-                    <small>Ultralytics YOLO · local</small>
+                    <strong id="activeModelLabel">{{ active_model.id }}</strong>
+                    <small id="activeModelHint">{{ active_model.label }} · {{ classes|length }} 个可选类别</small>
                 </div>
             </section>
 
@@ -106,6 +106,20 @@
                                 <span>检测参数</span>
                                 <small>可在每次任务中单独调整</small>
                             </div>
+
+                            <div class="model-field">
+                                <div class="model-field-head">
+                                    <span>检测模型</span>
+                                    <small id="modelMeta">{{ active_model.size_mb }} MB · {{ classes|length }} 个类别</small>
+                                </div>
+                                <select id="modelSelect" name="model" aria-label="选择检测模型">
+                                    {% for item in models %}
+                                    <option value="{{ item.id }}"{% if item.id == active_model.id %} selected{% endif %}>{{ item.label }} · {{ item.size_mb }} MB</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="model-field-note">切换模型会重新载入权重，可选类别随之变化</small>
+                            </div>
+
                             <div class="range-grid">
                                 <label class="range-field">
                                     <div><span>置信度阈值</span><output id="confValue">0.25</output></div>

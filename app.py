@@ -20,6 +20,7 @@ from ultralytics import YOLO
 
 
 BASE_DIR = Path(__file__).resolve().parent
+MODEL_DIR = BASE_DIR / "models"
 MODEL_PATH = Path(os.getenv("YOLO_MODEL", BASE_DIR / "yolo11m.pt"))
 UPLOAD_DIR = BASE_DIR / "uploads"
 RESULT_DIR = BASE_DIR / "results"
@@ -34,12 +35,21 @@ ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
 # 课程展示用的核心类别，避免把 COCO 的全部 80 个类别塞进界面。
 CORE_CLASS_IDS = [0, 1, 2, 3, 5, 7, 14, 15, 16, 39, 63, 67]
 
+# 常见权重的友好名称，其余权重统一显示为自训权重。
+MODEL_LABELS = {
+    "yolo11m.pt": "YOLO11m · COCO 预训练",
+    "yolo11n.pt": "YOLO11n · COCO 轻量预训练",
+    "yolov8n.pt": "YOLOv8n · COCO 轻量预训练",
+    "yolov8s.pt": "YOLOv8s · COCO 预训练",
+}
+
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 512 * 1024 * 1024
 
 MODEL_LOCK = threading.Lock()
-MODEL = None
-ACTIVE_DEVICE: str | int = "cpu"
+MODEL_LOAD_LOCK = threading.Lock()
+MODELS: dict[str, YOLO] = {}
+ACTIVE_DEVICE: str | int | None = None
 JOBS: dict[str, dict[str, object]] = {}
 JOBS_LOCK = threading.Lock()
 
@@ -54,6 +64,84 @@ def choose_device() -> str | int:
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         return "mps"
     return "cpu"
+
+
+def current_device() -> str | int:
+    global ACTIVE_DEVICE
+    if ACTIVE_DEVICE is None:
+        ACTIVE_DEVICE = choose_device()
+    return ACTIVE_DEVICE
+
+
+def available_models() -> list[dict[str, object]]:
+    """枚举可切换的权重：环境变量指定的、项目根目录的、models/ 目录的。"""
+    candidates: list[Path] = [Path(MODEL_PATH)]
+    candidates.extend([BASE_DIR / "yolo11m.pt", BASE_DIR / "yolo11n.pt"])
+    if MODEL_DIR.is_dir():
+        candidates.extend(sorted(MODEL_DIR.glob("*.pt")))
+
+    seen: set[Path] = set()
+    catalog: list[dict[str, object]] = []
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if resolved in seen or not resolved.is_file():
+            continue
+        seen.add(resolved)
+        try:
+            model_id = resolved.relative_to(BASE_DIR).as_posix()
+        except ValueError:
+            model_id = resolved.as_posix()
+        catalog.append(
+            {
+                "id": model_id,
+                "label": MODEL_LABELS.get(model_id, f"{resolved.stem} · 自训权重"),
+                "size_mb": round(resolved.stat().st_size / 1048576, 1),
+                "path": resolved,
+            }
+        )
+    return catalog
+
+
+def public_models() -> list[dict[str, object]]:
+    return [
+        {"id": item["id"], "label": item["label"], "size_mb": item["size_mb"]}
+        for item in available_models()
+    ]
+
+
+def resolve_model(model_id: str | None) -> dict[str, object]:
+    """把前端传来的标识收敛到白名单内，避免任意路径读取。"""
+    catalog = available_models()
+    if not catalog:
+        raise FileNotFoundError(
+            "没有找到可用的模型权重。请把 yolo11m.pt 放到项目根目录，或用 training/ 训练一个。"
+        )
+    if not model_id:
+        return catalog[0]
+    for item in catalog:
+        if item["id"] == model_id:
+            return item
+    raise ValueError("未知的模型标识，请刷新页面后重试。")
+
+
+def get_model(model_id: str | None = None) -> YOLO:
+    """按需加载并缓存模型，多个权重可以同时驻留。"""
+    entry = resolve_model(model_id)
+    key = str(entry["id"])
+    cached = MODELS.get(key)
+    if cached is not None:
+        return cached
+    with MODEL_LOAD_LOCK:
+        cached = MODELS.get(key)
+        if cached is not None:
+            return cached
+        model = YOLO(str(entry["path"]))
+        MODELS[key] = model
+        app.logger.info("Loaded %s on device=%s", key, current_device())
+        return model
 
 
 def init_database() -> None:
@@ -71,27 +159,25 @@ def init_database() -> None:
                 selected_classes TEXT NOT NULL,
                 detection_count INTEGER NOT NULL,
                 elapsed_seconds REAL NOT NULL,
-                device TEXT NOT NULL
+                device TEXT NOT NULL,
+                model TEXT NOT NULL DEFAULT ''
             )
             """
         )
-
-
-def get_model() -> YOLO:
-    global MODEL, ACTIVE_DEVICE
-    if MODEL is None:
-        if not MODEL_PATH.exists():
-            raise FileNotFoundError(
-                f"没有找到模型文件：{MODEL_PATH.name}。请将 yolo11m.pt 放到项目根目录。"
+        # 旧版本数据库没有 model 字段，这里做一次就地迁移
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(detections)")}
+        if "model" not in columns:
+            connection.execute(
+                "ALTER TABLE detections ADD COLUMN model TEXT NOT NULL DEFAULT ''"
             )
-        ACTIVE_DEVICE = choose_device()
-        MODEL = YOLO(str(MODEL_PATH))
-        app.logger.info("Loaded %s on device=%s", MODEL_PATH.name, ACTIVE_DEVICE)
-    return MODEL
 
 
-def model_names() -> list[dict[str, object]]:
-    names = get_model().names
+# 在导入时建表，保证 `flask run` / gunicorn 等启动方式也能正常读写历史记录
+init_database()
+
+
+def model_names(model_id: str | None = None) -> list[dict[str, object]]:
+    names = get_model(model_id).names
     if isinstance(names, list):
         return [
             {"id": index, "name": name}
@@ -113,8 +199,8 @@ def clamp_float(value: str | None, minimum: float, maximum: float, default: floa
     return max(minimum, min(maximum, parsed))
 
 
-def selected_class_ids(values: list[str]) -> list[int] | None:
-    valid_ids = {item["id"] for item in model_names()}
+def selected_class_ids(values: list[str], model_id: str | None = None) -> list[int] | None:
+    valid_ids = {item["id"] for item in model_names(model_id)}
     parsed: list[int] = []
     for value in values:
         try:
@@ -127,8 +213,10 @@ def selected_class_ids(values: list[str]) -> list[int] | None:
     return unique_ids or None
 
 
-def selected_class_names(class_ids: list[int] | None) -> list[str]:
-    names = {int(item["id"]): str(item["name"]) for item in model_names()}
+def selected_class_names(
+    class_ids: list[int] | None, model_id: str | None = None
+) -> list[str]:
+    names = {int(item["id"]): str(item["name"]) for item in model_names(model_id)}
     return [names[class_id] for class_id in class_ids or [] if class_id in names]
 
 
@@ -141,23 +229,29 @@ def media_type_for(filename: str) -> str | None:
     return None
 
 
-def run_prediction(source: object, conf: float, iou: float, class_ids: list[int] | None):
+def run_prediction(
+    source: object,
+    conf: float,
+    iou: float,
+    class_ids: list[int] | None,
+    model_id: str | None = None,
+):
     """Run inference and fall back to CPU if an MPS-only operation fails."""
     global ACTIVE_DEVICE
-    model = get_model()
+    model = get_model(model_id)
     options = {
         "source": source,
         "conf": conf,
         "iou": iou,
         "classes": class_ids,
-        "device": ACTIVE_DEVICE,
+        "device": current_device(),
         "verbose": False,
     }
     try:
         with MODEL_LOCK:
             return model.predict(**options)
     except Exception:
-        if ACTIVE_DEVICE != "mps":
+        if current_device() != "mps":
             raise
         app.logger.exception("MPS inference failed; falling back to CPU")
         ACTIVE_DEVICE = "cpu"
@@ -191,11 +285,18 @@ def detections_from_result(result) -> list[dict[str, object]]:
     return detections
 
 
-def process_image(input_path: Path, output_path: Path, conf: float, iou: float, class_ids: list[int] | None):
+def process_image(
+    input_path: Path,
+    output_path: Path,
+    conf: float,
+    iou: float,
+    class_ids: list[int] | None,
+    model_id: str | None = None,
+):
     image = cv2.imread(str(input_path))
     if image is None:
         raise ValueError("无法读取图片文件，请确认图片格式正确。")
-    results = run_prediction(str(input_path), conf, iou, class_ids)
+    results = run_prediction(str(input_path), conf, iou, class_ids, model_id)
     result = results[0]
     annotated = result.plot()
     if not cv2.imwrite(str(output_path), annotated):
@@ -209,6 +310,7 @@ def process_video(
     conf: float,
     iou: float,
     class_ids: list[int] | None,
+    model_id: str | None = None,
     progress_callback=None,
 ):
     capture = cv2.VideoCapture(str(input_path))
@@ -243,7 +345,7 @@ def process_video(
             success, frame = capture.read()
             if not success:
                 break
-            results = run_prediction(frame, conf, iou, class_ids)
+            results = run_prediction(frame, conf, iou, class_ids, model_id)
             result = results[0]
             annotated = result.plot()
             if annotated.shape[1] != width or annotated.shape[0] != height:
@@ -271,6 +373,8 @@ def process_video_job(
     conf: float,
     iou: float,
     class_ids: list[int],
+    model_id: str,
+    model_label: str,
 ):
     started = time.perf_counter()
 
@@ -293,18 +397,19 @@ def process_video_job(
             conf,
             iou,
             class_ids,
+            model_id,
             progress_callback=report_progress,
         )
         elapsed = round(time.perf_counter() - started, 2)
-        selected_names = selected_class_names(class_ids)
+        selected_names = selected_class_names(class_ids, model_id)
         created_at = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
         with sqlite3.connect(DATABASE_PATH) as connection:
             connection.execute(
                 """
                 INSERT INTO detections
                 (id, original_name, media_type, result_filename, created_at, conf, iou,
-                 selected_classes, detection_count, elapsed_seconds, device)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 selected_classes, detection_count, elapsed_seconds, device, model)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job_id,
@@ -317,7 +422,8 @@ def process_video_job(
                     json.dumps(selected_names, ensure_ascii=False),
                     detection_count,
                     elapsed,
-                    str(ACTIVE_DEVICE),
+                    str(current_device()),
+                    model_label,
                 ),
             )
 
@@ -333,7 +439,9 @@ def process_video_job(
                     download_url=f"/download/{result_filename}",
                     detection_count=detection_count,
                     elapsed_seconds=elapsed,
-                    device=str(ACTIVE_DEVICE),
+                    device=str(current_device()),
+                    model=model_label,
+                    model_id=model_id,
                     selected_classes=selected_names,
                     detections=[],
                 )
@@ -363,21 +471,47 @@ def too_large(_error):
 
 @app.get("/")
 def index():
+    models = public_models()
+    active = models[0] if models else {"id": "", "label": "未找到模型", "size_mb": 0}
+    classes = model_names(active["id"]) if models else []
     return render_template(
         "index.html",
-        classes=model_names(),
-        model_name=MODEL_PATH.name,
-        device=ACTIVE_DEVICE if MODEL is not None else choose_device(),
+        classes=classes,
+        models=models,
+        active_model=active,
+        device=current_device(),
+    )
+
+
+@app.get("/api/classes")
+def classes_for_model():
+    """返回指定模型的可选类别，供前端切换模型时重建类别筛选区。"""
+    try:
+        entry = resolve_model(request.args.get("model"))
+        items = model_names(str(entry["id"]))
+    except (FileNotFoundError, ValueError) as error:
+        return jsonify({"error": str(error)}), 400
+    return jsonify(
+        {
+            "model": entry["id"],
+            "model_label": entry["label"],
+            "classes": items,
+            "class_count": len(items),
+        }
     )
 
 
 @app.get("/api/health")
 def health():
+    models = public_models()
+    active = models[0] if models else {"id": "", "label": "未找到模型"}
     return jsonify(
         {
             "status": "ok",
-            "model": MODEL_PATH.name,
-            "device": ACTIVE_DEVICE if MODEL is not None else choose_device(),
+            "model": active["id"],
+            "model_label": active["label"],
+            "device": str(current_device()),
+            "models": models,
         }
     )
 
@@ -403,6 +537,7 @@ def history():
                 "detection_count": row["detection_count"],
                 "elapsed_seconds": row["elapsed_seconds"],
                 "device": row["device"],
+                "model": row["model"] if "model" in row.keys() else "",
                 "result_url": f"/media/{row['result_filename']}",
                 "download_url": f"/download/{row['result_filename']}",
             }
@@ -445,9 +580,15 @@ def detect():
 
     conf = clamp_float(request.form.get("conf"), 0.01, 0.99, 0.25)
     iou = clamp_float(request.form.get("iou"), 0.01, 0.99, 0.45)
-    class_ids = selected_class_ids(request.form.getlist("classes"))
-    if class_ids is None:
-        class_ids = [item["id"] for item in model_names()]
+    try:
+        model_entry = resolve_model(request.form.get("model"))
+        model_id = str(model_entry["id"])
+        model_label = str(model_entry["label"])
+        class_ids = selected_class_ids(request.form.getlist("classes"), model_id)
+        if class_ids is None:
+            class_ids = [item["id"] for item in model_names(model_id)]
+    except (FileNotFoundError, ValueError) as error:
+        return jsonify({"error": str(error)}), 400
     original_name = secure_filename(uploaded.filename) or "upload"
     record_id = uuid.uuid4().hex
     extension = Path(original_name).suffix.lower() or (".jpg" if media_type == "image" else ".mp4")
@@ -460,6 +601,9 @@ def detect():
     result_path = RESULT_DIR / result_filename
     started = time.perf_counter()
 
+    # 主动加载一次，把“模型文件损坏”这类错误提前到请求阶段返回
+    get_model(model_id)
+
     if media_type == "video":
         with JOBS_LOCK:
             JOBS[record_id] = {
@@ -471,7 +615,9 @@ def detect():
                 "progress": 0,
                 "processed_frames": 0,
                 "total_frames": 0,
-                "device": str(ACTIVE_DEVICE),
+                "device": str(current_device()),
+                "model": model_label,
+                "model_id": model_id,
             }
         worker = threading.Thread(
             target=process_video_job,
@@ -484,6 +630,8 @@ def detect():
                 conf,
                 iou,
                 class_ids,
+                model_id,
+                model_label,
             ),
             daemon=True,
         )
@@ -493,13 +641,13 @@ def detect():
     try:
         if media_type == "image":
             detections, processed_frames = process_image(
-                input_path, result_path, conf, iou, class_ids
+                input_path, result_path, conf, iou, class_ids, model_id
             )
             detection_count = len(detections)
             detection_details = detections
         else:
             detection_count, processed_frames, total_frames = process_video(
-                input_path, result_path, conf, iou, class_ids
+                input_path, result_path, conf, iou, class_ids, model_id
             )
             detection_details = []
         elapsed = round(time.perf_counter() - started, 2)
@@ -510,15 +658,15 @@ def detect():
     finally:
         input_path.unlink(missing_ok=True)
 
-    selected_names = selected_class_names(class_ids)
+    selected_names = selected_class_names(class_ids, model_id)
     created_at = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
     with sqlite3.connect(DATABASE_PATH) as connection:
         connection.execute(
             """
             INSERT INTO detections
             (id, original_name, media_type, result_filename, created_at, conf, iou,
-             selected_classes, detection_count, elapsed_seconds, device)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             selected_classes, detection_count, elapsed_seconds, device, model)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 record_id,
@@ -531,7 +679,8 @@ def detect():
                 json.dumps(selected_names, ensure_ascii=False),
                 detection_count,
                 elapsed,
-                str(ACTIVE_DEVICE),
+                str(current_device()),
+                model_label,
             ),
         )
 
@@ -543,7 +692,9 @@ def detect():
         "download_url": f"/download/{result_filename}",
         "detection_count": detection_count,
         "elapsed_seconds": elapsed,
-        "device": str(ACTIVE_DEVICE),
+        "device": str(current_device()),
+        "model": model_label,
+        "model_id": model_id,
         "selected_classes": selected_names,
         "detections": detection_details,
     }

@@ -9,4 +9,15 @@ results/*
 runs/
 .DS_Store
 test.jpg
-yolov8n.pt
+
+# 模型权重：体积大，统一走 Release 附件分发，不要进仓库
+*.pt
+*.onnx
+*.engine
+*.torchscript
+
+# 保留自训练产出目录的结构说明（权重本身仍被 *.pt 忽略）
+!models/.gitkeep
+
+# 数据集由 training/prepare_data.py 现场生成，不进仓库
+datasets/

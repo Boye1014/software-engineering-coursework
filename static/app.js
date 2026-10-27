@@ -121,9 +121,23 @@
     iouInput.addEventListener("input", () => { iouValue.value = iouInput.value; iouValue.textContent = iouInput.value; });
 
     const selectedClassIds = new Set();
-    const classNames = new Map(
-        [...document.querySelectorAll(".class-option")].map((option) => [option.dataset.class, option.querySelector("span:nth-child(2)").textContent.trim()])
-    );
+    let classNames = new Map();
+
+    const syncClassNames = () => {
+        classNames = new Map(
+            [...classPicker.querySelectorAll(".class-option")].map((option) => [
+                option.dataset.class,
+                option.querySelector("span:nth-child(2)").textContent.trim(),
+            ])
+        );
+    };
+
+    const renderClassPicker = (classes) => {
+        classPicker.innerHTML = classes
+            .map((item, index) => `<button type="button" class="class-option" data-class="${escapeHtml(item.id)}" title="添加 ${escapeHtml(item.name)}"><span class="class-option-id">${index + 1}</span><span>${escapeHtml(item.name)}</span></button>`)
+            .join("");
+        syncClassNames();
+    };
 
     const renderClassSelection = () => {
         document.querySelectorAll(".class-option").forEach((option) => {
@@ -167,6 +181,35 @@
             addClass(option.dataset.class);
         }
     });
+    const modelSelect = document.getElementById("modelSelect");
+    const activeModelLabel = document.getElementById("activeModelLabel");
+    const activeModelHint = document.getElementById("activeModelHint");
+    const sideModelLabel = document.getElementById("sideModelLabel");
+    const modelMeta = document.getElementById("modelMeta");
+
+    syncClassNames();
+    modelSelect?.addEventListener("change", async () => {
+        selectedClassIds.clear();
+        modelSelect.disabled = true;
+        try {
+            const response = await fetch(`/api/classes?model=${encodeURIComponent(modelSelect.value)}`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "无法加载该模型的类别。");
+            renderClassPicker(data.classes || []);
+            renderClassSelection();
+            activeModelLabel.textContent = data.model;
+            activeModelHint.textContent = `${data.model_label} · ${data.class_count} 个可选类别`;
+            sideModelLabel.textContent = data.model;
+            const sizeText = modelSelect.options[modelSelect.selectedIndex]?.textContent || "";
+            modelMeta.textContent = sizeText.replace(/^.*?·\s*/, "");
+            showToast(`已切换到 ${data.model_label}，可选类别 ${data.class_count} 个。`);
+        } catch (error) {
+            showToast(error.message || "切换模型失败。");
+        } finally {
+            modelSelect.disabled = false;
+        }
+    });
+
     document.getElementById("clearClasses").addEventListener("click", () => {
         selectedClassIds.clear();
         renderClassSelection();
@@ -228,6 +271,7 @@
                 summaryItem("检测目标", `${data.detection_count} 个`),
                 summaryItem("耗时", `${data.elapsed_seconds}s`),
                 summaryItem("设备", data.device),
+                summaryItem("模型", data.model || "—"),
             ].join("");
             const detections = data.detections || [];
             detectionList.innerHTML = detections.length
@@ -239,6 +283,7 @@
                 summaryItem("检测框总数", `${data.detection_count}`),
                 summaryItem("处理帧数", `${data.processed_frames}`),
                 summaryItem("耗时", `${data.elapsed_seconds}s`),
+                summaryItem("模型", data.model || "—"),
             ].join("");
             detectionList.innerHTML = `<div class="detection-row"><b>视频检测完成</b><span>${data.processed_frames} / ${data.total_frames || data.processed_frames} frames</span></div>`;
         }
@@ -304,9 +349,10 @@
             const isImage = item.media_type === "image";
             const thumbnail = isImage ? `<img src="${item.result_url}" alt="">` : "▶";
             const classes = item.selected_classes?.length ? item.selected_classes.join(", ") : "全部类别";
+            const model = item.model ? ` · ${item.model}` : "";
             return `<article class="history-item">
                 <div class="history-thumb">${thumbnail}</div>
-                <div class="history-info"><strong title="${escapeHtml(item.original_name)}">${escapeHtml(item.original_name)}</strong><span>${escapeHtml(item.created_at)} · ${escapeHtml(classes)} · ${escapeHtml(item.device)}</span></div>
+                <div class="history-info"><strong title="${escapeHtml(item.original_name)}">${escapeHtml(item.original_name)}</strong><span>${escapeHtml(item.created_at)} · ${escapeHtml(classes)} · ${escapeHtml(item.device)}${escapeHtml(model)}</span></div>
                 <div class="history-stat"><b>${item.detection_count}</b> ${isImage ? "个目标" : "个检测框"}</div>
                 <div class="history-actions"><a href="${item.result_url}" target="_blank" rel="noreferrer">查看</a><a href="${item.download_url}" download>下载</a><button type="button" data-delete="${item.id}">删除</button></div>
             </article>`;

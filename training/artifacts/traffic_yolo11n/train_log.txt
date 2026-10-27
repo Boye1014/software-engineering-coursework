@@ -1,0 +1,276 @@
+数据配置：D:\Codes\experiments\software-engineering-coursework\datasets\traffic\data.yaml
+基础权重：yolo11n.pt    设备：0
+训练参数：epochs=100 imgsz=640 batch=32 lr0=0.01
+[34m[1mengine\trainer: [0magnostic_nms=False, amp=True, angle=1.0, augment=False, auto_augment=randaugment, batch=32, bgr=0.0, box=7.5, cache=False, cfg=None, channels_last=None, classes=None, close_mosaic=10, cls=0.5, cls_pw=0.0, cls_remap=True, compile=False, conf=None, copy_paste=0.0, copy_paste_mode=flip, cos_lr=False, cutmix=0.0, data=D:\Codes\experiments\software-engineering-coursework\datasets\traffic\data.yaml, degrees=0.0, deterministic=True, device=0, dfl=1.5, dgrad=0.5, dis=6.0, distill_model=None, dlam=1.0, dlog=1.0, dnn=False, dropout=0.0, dynamic=False, embed=None, epochs=100, erasing=0.4, exist_ok=True, fliplr=0.5, flipud=0.0, format=torchscript, fraction=1.0, freeze=None, hsv_h=0.015, hsv_s=0.7, hsv_v=0.4, imgsz=640, iou=0.7, kobj=1.0, line_width=None, lr0=0.01, lrf=0.01, mask_ratio=4, max_det=300, mixup=0.0, mode=train, model=yolo11n.pt, momentum=0.937, mosaic=1.0, multi_scale=0.0, name=traffic_yolo11n, nbs=64, nms=None, opset=None, optimize=False, optimizer=auto, overlap_mask=True, patience=20, perspective=0.0, plots=True, pose=12.0, pretrained=True, profile=False, project=D:\Codes\experiments\software-engineering-coursework\runs\train, quantize=None, rect=False, resume=False, retina_masks=False, rle=1.0, save=True, save_conf=False, save_crop=False, save_dir=D:\Codes\experiments\software-engineering-coursework\runs\train\traffic_yolo11n, save_frames=False, save_json=False, save_period=-1, save_txt=False, scale=0.5, seed=0, shear=0.0, show=False, show_boxes=True, show_conf=True, show_labels=True, simplify=True, single_cls=False, source=None, split=val, stream_buffer=False, task=detect, time=None, tracker=tracktrack.yaml, translate=0.1, val=True, verbose=True, vid_stride=1, visualize=False, warmup_bias_lr=0.1, warmup_epochs=3.0, warmup_momentum=0.8, weight_decay=0.0005, workers=8, workspace=None
+Overriding model.yaml nc=80 with nc=4
+from  n    params  module                                       arguments
+0                  -1  1       464  ultralytics.nn.modules.conv.Conv             [3, 16, 3, 2]
+1                  -1  1      4672  ultralytics.nn.modules.conv.Conv             [16, 32, 3, 2]
+2                  -1  1      6640  ultralytics.nn.modules.block.C3k2            [32, 64, 1, False, 0.25]
+3                  -1  1     36992  ultralytics.nn.modules.conv.Conv             [64, 64, 3, 2]
+4                  -1  1     26080  ultralytics.nn.modules.block.C3k2            [64, 128, 1, False, 0.25]
+5                  -1  1    147712  ultralytics.nn.modules.conv.Conv             [128, 128, 3, 2]
+6                  -1  1     87040  ultralytics.nn.modules.block.C3k2            [128, 128, 1, True]
+7                  -1  1    295424  ultralytics.nn.modules.conv.Conv             [128, 256, 3, 2]
+8                  -1  1    346112  ultralytics.nn.modules.block.C3k2            [256, 256, 1, True]
+9                  -1  1    164608  ultralytics.nn.modules.block.SPPF            [256, 256, 5]
+10                  -1  1    249728  ultralytics.nn.modules.block.C2PSA           [256, 256, 1]
+11                  -1  1         0  torch.nn.modules.upsampling.Upsample         [None, 2, 'nearest']
+12             [-1, 6]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+13                  -1  1    111296  ultralytics.nn.modules.block.C3k2            [384, 128, 1, False]
+14                  -1  1         0  torch.nn.modules.upsampling.Upsample         [None, 2, 'nearest']
+15             [-1, 4]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+16                  -1  1     32096  ultralytics.nn.modules.block.C3k2            [256, 64, 1, False]
+17                  -1  1     36992  ultralytics.nn.modules.conv.Conv             [64, 64, 3, 2]
+18            [-1, 13]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+19                  -1  1     86720  ultralytics.nn.modules.block.C3k2            [192, 128, 1, False]
+20                  -1  1    147712  ultralytics.nn.modules.conv.Conv             [128, 128, 3, 2]
+21            [-1, 10]  1         0  ultralytics.nn.modules.conv.Concat           [1]
+22                  -1  1    378880  ultralytics.nn.modules.block.C3k2            [384, 256, 1, True]
+23        [16, 19, 22]  1    431452  ultralytics.nn.modules.head.Detect           [4, 16, None, [64, 128, 256]]
+YOLO11n summary: 181 layers, 2,590,620 parameters, 2,590,604 gradients, 6.5 GFLOPs
+Remapped 4/4 cls head rows from pretrained weights by class name
+Transferred 499/499 items from pretrained weights
+Freezing layer 'model.23.dfl.conv.weight'
+[34m[1mAMP: [0mrunning Automatic Mixed Precision (AMP) checks...
+[34m[1mAMP: [0mdownloading yolo26n.pt for AMP checks (one-time, not used for training)...
+ERROR [34m[1mAMP: [0mchecks failed. Anomalies were detected with AMP on your system that may lead to NaN losses or zero-mAP results, so AMP will be disabled during training.
+WARNING [34m[1mtrain: [0mSlow image access detected (ping: 0.0±0.0 ms, read: 15.7±6.3 MB/s, size: 73.9 KB). Use local storage instead of remote/mounted storage for better performance. See https://docs.ultralytics.com/guides/model-training-tips
+[34m[1mval: [0mFast image access  (ping: 0.0±0.0 ms, read: 190.1±41.5 MB/s, size: 70.5 KB)
+[34m[1moptimizer:[0m 'optimizer=auto' found, ignoring 'lr0=0.01' and determining best 'optimizer' and 'lr0' automatically...
+[34m[1moptimizer:[0m AdamW(lr=0.00125, momentum=0.9) with parameter groups 81 weight(decay=0.0), 88 weight(decay=0.0005), 87 bias(decay=0.0)
+Plotting labels to D:\Codes\experiments\software-engineering-coursework\runs\train\traffic_yolo11n\labels.jpg...
+Using 4510 train, 501 val images for fraction=1.0 at imgsz=640
+Using 8 dataloader workers
+Logging results to [1mD:\Codes\experiments\software-engineering-coursework\runs\train\traffic_yolo11n[0m
+Starting training for 100 epochs...
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.573      0.481      0.466      0.258
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.625      0.329      0.337      0.173
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.695      0.287       0.26      0.136
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.59      0.419      0.451      0.201
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.318      0.305      0.277      0.132
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.545      0.472      0.495      0.285
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.77      0.397       0.53      0.311
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.626      0.522      0.584      0.365
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.674      0.502      0.574      0.343
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.656      0.503      0.579      0.335
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.755      0.551       0.64      0.387
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.724      0.592       0.67      0.407
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.698      0.639      0.701      0.442
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.689      0.559      0.651      0.409
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.818      0.494      0.624      0.366
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.745       0.53      0.669       0.46
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.76      0.673      0.738      0.494
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.752      0.623      0.707       0.47
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.79      0.645      0.741      0.479
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.773      0.678       0.77      0.521
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.801      0.666      0.769      0.507
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.781      0.709      0.798      0.528
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.667      0.678      0.712      0.483
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.855      0.686      0.777      0.528
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.819      0.676      0.771      0.536
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.735      0.701      0.734      0.497
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.827      0.613      0.764      0.509
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.79      0.674      0.797      0.555
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.729      0.721      0.771      0.508
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.735      0.735      0.764      0.508
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.793      0.642      0.758      0.512
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.826      0.678      0.793      0.541
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.758      0.696      0.774      0.537
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.81       0.71      0.789      0.552
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.851      0.758      0.821      0.578
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.786      0.713       0.79      0.542
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.775      0.734      0.791      0.555
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.862      0.713      0.808      0.565
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.865      0.696       0.81      0.578
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.753      0.692      0.752      0.518
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.836      0.755       0.83      0.597
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.809      0.774      0.806      0.584
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.777      0.747      0.797       0.56
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.87      0.751      0.825      0.595
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.852      0.705      0.816      0.582
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.882      0.741      0.832      0.604
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.882      0.694       0.81      0.581
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.787      0.775      0.824      0.595
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.897      0.734      0.839      0.607
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.877      0.722      0.828      0.597
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.838      0.735      0.824      0.596
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.885      0.685      0.819      0.591
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.793      0.761      0.832      0.616
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.849      0.741      0.837      0.619
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.865       0.73       0.84      0.597
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.928      0.695      0.823      0.597
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.852      0.719      0.818      0.597
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.867      0.745       0.85      0.625
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.88       0.73      0.844      0.627
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.893      0.734      0.833       0.63
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.851      0.796      0.841      0.625
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.818       0.79      0.844      0.621
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.903      0.747      0.832      0.617
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.853      0.736       0.83      0.618
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.871      0.766      0.837      0.626
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.855      0.748      0.839      0.629
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.895      0.749      0.826      0.638
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.87      0.739      0.821      0.618
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.85       0.76       0.83       0.62
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.888      0.752      0.847      0.627
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.892      0.777      0.846      0.631
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.923      0.752      0.848      0.644
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.869      0.794      0.851      0.644
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.869      0.762       0.84      0.632
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.85       0.81      0.846      0.644
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.814      0.783      0.843      0.637
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.848      0.782      0.836       0.63
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.919      0.753      0.853      0.635
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.891      0.773      0.845      0.633
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.879      0.758      0.846       0.63
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.869      0.776       0.85      0.644
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.881      0.764      0.855      0.654
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.877      0.773      0.845       0.63
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.815        0.8      0.851      0.642
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.813      0.815      0.853      0.646
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.887      0.778      0.847      0.638
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.902      0.759      0.844      0.629
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.895      0.789      0.849      0.642
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.875      0.788      0.841      0.633
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.859      0.783       0.84      0.635
+Closing dataloader mosaic
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.924      0.731      0.843      0.634
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.877      0.773      0.843      0.645
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.885      0.786      0.845      0.645
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.881      0.782      0.843      0.639
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623       0.88      0.786       0.84      0.635
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.904      0.784      0.845      0.635
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.893      0.786      0.844       0.64
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.876      0.799      0.841      0.642
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.891      0.776       0.84      0.639
+Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+all        501        623      0.884      0.794      0.842      0.636
+100 epochs completed in 1.647 hours.
+Optimizer stripped from D:\Codes\experiments\software-engineering-coursework\runs\train\traffic_yolo11n\weights\last.pt, 5.5MB
+Optimizer stripped from D:\Codes\experiments\software-engineering-coursework\runs\train\traffic_yolo11n\weights\best.pt, 5.5MB
+Validating D:\Codes\experiments\software-engineering-coursework\runs\train\traffic_yolo11n\weights\best.pt...
+all        501        623      0.882      0.765      0.856      0.654
+person        204        451      0.848      0.743      0.839      0.538
+bicycle         28         36      0.905      0.792      0.889      0.718
+car         69        109      0.818      0.784      0.846      0.665
+bus         17         27      0.958      0.741      0.849      0.696
+Speed: 0.3ms preprocess, 3.4ms inference, 0.0ms loss, 0.8ms postprocess per image
+Results saved to [1mD:\Codes\experiments\software-engineering-coursework\runs\train\traffic_yolo11n[0m
+在验证集上复核最优权重…
+[34m[1mval: [0mFast image access  (ping: 0.0±0.0 ms, read: 165.8±17.9 MB/s, size: 88.8 KB)
+all        501        623      0.889      0.767      0.857      0.653
+Speed: 0.7ms preprocess, 3.5ms inference, 0.0ms loss, 0.6ms postprocess per image
+Results saved to [1mD:\Codes\experiments\software-engineering-coursework\runs\detect\val-2[0m
+==============================================
+训练完成，耗时 100.0 分钟，实际 100 epoch
+权重      : models\traffic_yolo11n.pt
+指标      : models\traffic_yolo11n.metrics.json
+mAP50     : 0.8565
+mAP50-95  : 0.6532
+person   mAP50-95=0.537  P=0.862  R=0.734
+bicycle  mAP50-95=0.722  P=0.907  R=0.814
+car      mAP50-95=0.663  P=0.822  R=0.780
+bus      mAP50-95=0.690  P=0.963  R=0.741
+==============================================
+切换到自训模型：
+YOLO_MODEL=models/traffic_yolo11n.pt python app.py
