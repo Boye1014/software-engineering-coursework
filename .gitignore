@@ -21,3 +21,6 @@ test.jpg
 
 # 数据集由 training/prepare_data.py 现场生成，不进仓库
 datasets/
+
+# 训练过程的原始控制台日志（体积大，只保留精简版 train_log.txt）
+training/artifacts/*.log

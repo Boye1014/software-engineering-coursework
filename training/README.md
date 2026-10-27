@@ -187,3 +187,36 @@ $env:YOLO_MODEL="models/traffic_yolo11n.pt"; python app.py
   （imgsz=960/1280）或改用更大的模型。
 - **训练集是 VOC2007 单一年份**。想要更强的泛化，可以把 VOC2012 一起并入，
   或改用 VisDrone 这类更贴近实际场景的数据集。
+
+---
+
+## 8. 扩展：12 类模型（COCO2017-val + VOC2007）
+
+上面 1~7 节是 4 类的版本。由于界面展示 12 个核心类别，另提供一条 12 类训练链，
+让自训模型的类别范围与界面一致。
+
+```bash
+python training/prepare_coco12.py    # 下载 COCO val2017(778MB)+标注(242MB)，与本地 VOC 合并
+python training/train.py --data datasets/traffic12/data.yaml \
+    --epochs 100 --batch 16 --patience 100 --name traffic12_yolo11n
+python training/compare_models.py --name traffic12_yolo11n   # 三模型同台评测
+```
+
+数据集：COCO val2017 与 VOC2007 合并，共 **7521 张图 / 25164 个框**（train 6770 / val 751），
+类别 ID 连续编号 0~11。
+
+结果：**mAP@0.5 = 0.5912，mAP@0.5:0.95 = 0.4312**，权重 5.3MB，CPU 单帧 27.7ms。
+
+同一批 751 张图上的横向对比：
+
+| 模型 | 类别数 | mAP@0.5 | mAP@0.5:0.95 | 体积 | CPU |
+| --- | --- | --- | --- | --- | --- |
+| 自训 traffic12_yolo11n | 12 | 0.5912 | 0.4312 | 5.3MB | 27.7ms |
+| 官方 yolo11n | 80 | 0.7103 | 0.5474 | 5.4MB | 29.9ms |
+| 官方 yolo11m | 80 | 0.8093 | 0.6486 | 38.8MB | 112.5ms |
+
+同样的 n 架构、同样的速度，自训版 mAP@0.5 低 12 个点，差距来自训练数据量
+（11.8 万张 vs 6800 张）。详细分析和踩坑记录见根目录 [`训练.md`](../训练.md) 第八节。
+
+**注意**：换检测头后指标会先崩后升（0.52 → 0.12 → 0.59），训练时务必用
+`--patience 100` 关闭早停，否则会在第 20 轮左右误停，保存下未收敛的权重。

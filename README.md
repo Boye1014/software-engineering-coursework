@@ -52,8 +52,21 @@ YOLO_MODEL=models/traffic_yolo11n.pt python app.py
 权重仅 5.2MB，CPU 单帧 33ms。切到它之后系统类别筛选区会自动只显示这 4 个类别，
 其余功能无需改动。
 
-数据集构建细节、训练参数、分类别指标、与预训练模型的速度/体积对比，以及
-结果分析见 [`training/README.md`](training/README.md)。
+如果想覆盖界面全部 12 个核心类别，可以训练 12 类版本（COCO2017-val + VOC2007 合并，
+7521 张图）：
+
+```bash
+python training/prepare_coco12.py
+python training/train.py --data datasets/traffic12/data.yaml \
+    --epochs 100 --batch 16 --patience 100 --name traffic12_yolo11n
+```
+
+结果 **mAP@0.5 = 0.5912，mAP@0.5:0.95 = 0.4312**，权重 5.3MB。同一批验证图上
+与官方权重对比：官方 yolo11n 为 0.7103、官方 yolo11m 为 0.8093——同样的 n 架构、
+同样的推理速度，自训版低 12 个点，差距来自训练数据量（11.8 万 vs 6800 张）。
+
+数据集构建细节、训练参数、分类别指标、三模型对比和踩坑记录见
+[`training/README.md`](training/README.md) 与 [`训练.md`](训练.md)。
 
 > 说明：`app.py` 主体仍是预训练模型推理；`training/` 目录是独立补充的训练链，
 > 不运行训练也不影响系统启动。

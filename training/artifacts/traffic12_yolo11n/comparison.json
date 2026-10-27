@@ -1,0 +1,29 @@
+[
+  {
+    "model": "自训 traffic12_yolo11n",
+    "classes": 12,
+    "mAP50": 0.5912,
+    "mAP50-95": 0.4312,
+    "size_mb": 5.3,
+    "latency_cpu_ms": 27.7,
+    "latency_gpu_ms": 11.2
+  },
+  {
+    "model": "官方 yolo11n.pt",
+    "classes": 80,
+    "mAP50": 0.7103,
+    "mAP50-95": 0.5474,
+    "size_mb": 5.4,
+    "latency_cpu_ms": 29.9,
+    "latency_gpu_ms": 11.4
+  },
+  {
+    "model": "官方 yolo11m.pt",
+    "classes": 80,
+    "mAP50": 0.8093,
+    "mAP50-95": 0.6486,
+    "size_mb": 38.8,
+    "latency_cpu_ms": 112.5,
+    "latency_gpu_ms": 18.0
+  }
+]

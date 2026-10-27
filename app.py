@@ -34,6 +34,8 @@ ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
 
 # 课程展示用的核心类别，避免把 COCO 的全部 80 个类别塞进界面。
 CORE_CLASS_IDS = [0, 1, 2, 3, 5, 7, 14, 15, 16, 39, 63, 67]
+# 类别数超过这个阈值的模型（如 COCO 80 类）才做核心类别过滤
+CORE_CLASS_THRESHOLD = 20
 
 # 常见权重的友好名称，其余权重统一显示为自训权重。
 MODEL_LABELS = {
@@ -177,18 +179,22 @@ init_database()
 
 
 def model_names(model_id: str | None = None) -> list[dict[str, object]]:
+    """取模型的可选类别。
+
+    完整 COCO 模型有 80 类，界面上只展示 CORE_CLASS_IDS 里的核心类；
+    自训模型类别数不多（4 类、12 类等），直接全部展示，避免过滤后对不上。
+    """
     names = get_model(model_id).names
     if isinstance(names, list):
-        return [
-            {"id": index, "name": name}
-            for index, name in enumerate(names)
-            if index in CORE_CLASS_IDS
+        items = [{"id": index, "name": name} for index, name in enumerate(names)]
+    else:
+        items = [
+            {"id": int(index), "name": name}
+            for index, name in sorted(names.items())
         ]
-    return [
-        {"id": int(index), "name": name}
-        for index, name in sorted(names.items())
-        if int(index) in CORE_CLASS_IDS
-    ]
+    if len(items) > CORE_CLASS_THRESHOLD:
+        return [item for item in items if int(item["id"]) in CORE_CLASS_IDS]
+    return items
 
 
 def clamp_float(value: str | None, minimum: float, maximum: float, default: float) -> float:
