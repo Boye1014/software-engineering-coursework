@@ -24,3 +24,6 @@ datasets/
 
 # 训练过程的原始控制台日志（体积大，只保留精简版 train_log.txt）
 training/artifacts/*.log
+
+# 测试缓存
+.pytest_cache/

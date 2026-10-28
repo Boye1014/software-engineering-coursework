@@ -1,0 +1,3 @@
+# 测试依赖（运行 python -m pytest 需要）
+-r requirements.txt
+pytest>=7.4,<9

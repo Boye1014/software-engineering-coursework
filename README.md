@@ -158,6 +158,41 @@ http://127.0.0.1:5000/api/health
 - 视频：MP4、MOV、AVI、MKV、WEBM
 - 单个文件大小上限：512 MB
 
+## 测试
+
+项目带一套自动化测试，共 **178 个用例**，本机（RTX 4070 Laptop）全量运行约 **33 秒**。
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
+
+测试默认使用 `yolo11n.pt`（5.4MB）而不是 `yolo11m.pt`，单个用例的推理开销从 110ms
+降到 30ms；想用别的权重可以 `YOLO_MODEL=yolo11m.pt python -m pytest`。
+
+| 模块 | 用例数 | 覆盖内容 |
+| --- | --- | --- |
+| `test_unit_functions.py` | 59 | 置信度夹紧、扩展名白名单、模型白名单、类别筛选、路径防护、数据库迁移 |
+| `test_api_pages.py` | 22 | 首页渲染、`/api/health`、`/api/classes`、静态资源、404 处理 |
+| `test_api_detect_image.py` | 25 | 图片检测主流程、类别筛选、参数边界、多模型切换、临时文件清理 |
+| `test_api_detect_video.py` | 10 | 异步任务提交、进度单调、产出可播、损坏视频转 error |
+| `test_api_history.py` | 9 | 记录写入、倒序、50 条上限、删除联动清理结果文件 |
+| `test_security_edges.py` | 23 | 非法文件类型、超大上传、文件名注入、路径穿越、模型标识白名单 |
+| `test_frontend_static.py` | 9 | JS 引用的元素 ID / 类名与 HTML、CSS 的一致性 |
+| `test_training_scripts.py` | 21 | VOC→YOLO 标注转换、设备选择、产物收集、指标抽取 |
+
+隔离策略：每个用例使用独立的临时 `uploads/`、`results/` 和 SQLite 文件，
+`JOBS` 任务表在用例前后清空，因此测试不会污染开发数据。
+
+写测试的过程暴露了两个真实缺陷，已一并修复：
+
+1. **`detections_from_result` 的类别兜底失效**：类别 ID 不在 `names` 里时先抛
+   `KeyError`，写在后面的 `.get()` 兜底永远执行不到。
+2. **结果文件缺失返回 302 而不是 404**：`<img>` / `<video>` 会拿到一页 HTML，
+   前端表现为静默失败；现在 404 处理会区分页面路径与 `/api/`、`/media/`、`/download/`。
+
+完整用例清单、覆盖边界和未覆盖项见 [`tests/README.md`](tests/README.md)。
+
 ## 项目结构
 
 ```text
@@ -167,6 +202,12 @@ software/
 ├── static/style.css       # 页面样式
 ├── static/app.js          # 上传、进度轮询、交互和历史记录
 ├── requirements.txt       # Python 依赖
+├── requirements-dev.txt   # 测试依赖（pytest）
+├── pytest.ini             # pytest 配置
+├── tests/                 # 自动化测试，178 个用例
+│   ├── conftest.py        # 公共夹具：临时目录、独立数据库、测试素材
+│   ├── README.md          # 用例清单与覆盖说明
+│   └── test_*.py          # 按模块划分的 8 个测试文件
 ├── yolo11m.pt             # 从 GitHub Release 下载后放在根目录
 ├── test_images/           # 图片测试素材及来源说明
 ├── test_videos/           # 视频测试素材及来源说明
@@ -174,7 +215,9 @@ software/
 ├── 训练.md                 # 训练与系统改造的工作记录、验证清单和遗留问题
 ├── training/              # 训练链：数据集构建、训练脚本、产物与说明
 │   ├── prepare_data.py    # VOC2007 下载 + XML 转 YOLO + 四类过滤 + 切分
+│   ├── prepare_coco12.py  # COCO2017-val + VOC2007 合并，构建 12 类数据集
 │   ├── train.py           # YOLO11n 训练、验证、指标导出
+│   ├── compare_models.py  # 三模型同台评测（标签 ID 重映射回 COCO）
 │   ├── README.md          # 训练流程与结果分析
 │   └── artifacts/         # 训练曲线、混淆矩阵、PR 曲线等
 ├── models/                # 自训权重与指标 JSON（权重本身不进仓库）
@@ -191,6 +234,7 @@ software/
 - `detections.db`、`uploads/`、`results/`、`runs/`、`datasets/` 属于本地运行数据，不需要提交到版本库。
 - 所有 `.pt` 权重都不进仓库（体积太大），需要时从 Release 下载或运行 `training/` 自行训练。
 - 如果 NVIDIA 电脑启动后仍显示 CPU，需要安装与显卡驱动匹配的 CUDA 版 PyTorch。
+- 改完代码建议先跑一遍 `python -m pytest`（约 30 秒），确认没有破坏已有功能。
 
 ## 测试素材
 

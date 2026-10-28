@@ -277,9 +277,12 @@ def detections_from_result(result) -> list[dict[str, object]]:
         result.boxes.cls,
     ):
         class_id = int(class_tensor.item())
-        name = names[class_id] if isinstance(names, (list, dict)) else str(class_id)
         if isinstance(names, dict):
             name = names.get(class_id, str(class_id))
+        elif isinstance(names, (list, tuple)) and 0 <= class_id < len(names):
+            name = names[class_id]
+        else:
+            name = str(class_id)
         detections.append(
             {
                 "class_id": class_id,
@@ -729,7 +732,8 @@ def download(filename: str):
 
 @app.errorhandler(404)
 def not_found(_error):
-    if request.path.startswith("/api/"):
+    # 页面路径回首页；接口和结果文件路径返回 404，避免 <img>/<video> 拿到一页 HTML
+    if request.path.startswith(("/api/", "/media/", "/download/")):
         return jsonify({"error": "资源不存在。"}), 404
     return redirect("/")
 
