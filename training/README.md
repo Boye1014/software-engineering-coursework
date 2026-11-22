@@ -92,7 +92,7 @@ python training/train.py --epochs 3 --batch 16
 | epoch | 100（早停 patience=20） |
 | 初始学习率 | 0.01（SGD） |
 | 随机种子 | 0（`deterministic=True`） |
-| 设备 | 自动选择 CUDA / MPS / CPU |
+| 设备 | 自动选择 CUDA（可用时）或 CPU；自动模式不会选择 Apple MPS |
 | 数据增强 | ultralytics 默认策略（mosaic、HSV、翻转等），最后 10 epoch 关闭 mosaic |
 
 ## 4. 训练结果

@@ -169,7 +169,7 @@ python -m pytest --durations=10
 | 测试项 | 验证内容 |
 | --- | --- |
 | `test_frontend_files_exist` | 模板/脚本/样式都存在且非空 |
-| `test_every_element_id_used_by_js_exists_in_html` | **JS 里 46 个 `getElementById` 全部能在 HTML 找到** |
+| `test_every_element_id_used_by_js_exists_in_html` | **JS 里 49 个 `getElementById` 全部能在 HTML 找到** |
 | `test_every_css_class_used_by_js_exists_in_stylesheet` | JS 动态拼的类名都有对应样式 |
 | `test_model_selector_is_wired` | 模型下拉以 `model` 提交，切换时请求 `/api/classes` |
 | `test_class_picker_renders_from_template` | 类别区由模板渲染，带 `data-class` |
@@ -203,8 +203,8 @@ python -m pytest --durations=10
 
 | 问题 | 表现 | 修复 |
 | --- | --- | --- |
-| `detections_from_result` 的类别兜底失效 | 类别 ID 不在 `names` 里时先抛 `KeyError`，后面的 `.get` 兜底永远执行不到 | 改成先按类型取值再兜底（`app.py`） |
-| 结果文件缺失返回 302 而不是 404 | `<img src>`、`<video src>` 拿到一页 HTML，前端表现为静默失败 | 404 处理区分页面路径与 `/api/`、`/media/`、`/download/` |
+| `detections_from_result` 的类别兜底失效 | 类别 ID 不在 `names` 里时先抛 `KeyError`，后面的 `.get` 兜底永远执行不到 | 改成先按类型取值再兜底（`inference.py`） |
+| 结果文件缺失返回 302 而不是 404 | `<img src>`、`<video src>` 拿到一页 HTML，前端表现为静默失败 | 404 处理区分页面路径与 `/api/`、`/media/`、`/download/`（`routes.py`） |
 
 ## 已知未覆盖的部分
 
@@ -212,10 +212,10 @@ python -m pytest --durations=10
 
 1. **模型精度不做断言**。用例只验证"能检出、类别对、结构合法"，不断言具体
    mAP 或检出数量。精度回归应由 `training/compare_models.py` 负责，而不是单元测试。
-2. **并发压力未测**。`JOBS` 字典只增不减、两个视频任务抢 `MODEL_LOCK` 这两个
-   已知问题需要专门的并发用例，当前只有一次"两次连续请求不互相覆盖"的粗测。
-3. **音频轨道未测**。视频输出目前只有画面轨，没有音轨（已知遗留问题），
-   用例只验证文件可播、可下载。
+2. **队列压力未测**。视频任务由单工作线程串行处理，等待队列不设容量上限；大量上传时
+   的磁盘占用和多进程部署下的跨进程并发仍未覆盖。`JOBS` 是进程内状态，完成记录暂无过期清理。
+3. **音频轨道未测**。视频输出会通过 FFmpeg 合并原始音轨；现有用例只验证文件可播、可下载，
+   没有断言音轨存在或音画同步。
 4. **跨平台路径未测**。Windows 下的硬链接、盘符路径行为与其他系统不同，
    只在 Windows 上跑过。
 

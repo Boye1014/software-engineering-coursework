@@ -7,6 +7,8 @@
 
 - 图片上传、预览、目标检测和结果下载
 - 视频上传、逐帧检测、实时处理进度和带框视频输出
+- 视频检测结果保留原始音轨
+- 视频可多选上传，处理中也可提交新视频；任务由单个工作线程串行处理并显示各自状态
 - 界面内切换检测模型（COCO 预训练 80 类 / 自训 4 类），可选类别随模型自动变化
 - 置信度阈值、NMS / IoU 阈值调节
 - 12 个核心类别筛选：`person`、`bicycle`、`car`、`motorcycle`、`bus`、`truck`、`bird`、`cat`、`dog`、`bottle`、`laptop`、`cell phone`
@@ -23,6 +25,7 @@
 - Flask
 - Ultralytics YOLO11m
 - OpenCV
+- FFmpeg（由 `imageio-ffmpeg` 提供，用于保留视频音轨）
 - SQLite
 - HTML / CSS / JavaScript
 
@@ -68,8 +71,8 @@ python training/train.py --data datasets/traffic12/data.yaml \
 数据集构建细节、训练参数、分类别指标、三模型对比和踩坑记录见
 [`training/README.md`](training/README.md) 与 [`训练.md`](训练.md)。
 
-> 说明：`app.py` 主体仍是预训练模型推理；`training/` 目录是独立补充的训练链，
-> 不运行训练也不影响系统启动。
+> 说明：系统默认仍用预训练模型推理；推理、存储和路由分别位于 `inference.py`、
+> `storage.py`、`routes.py`。`training/` 是独立训练链，不运行训练也不影响系统启动。
 
 ## 运行环境
 
@@ -197,7 +200,10 @@ python -m pytest
 
 ```text
 software/
-├── app.py                 # Flask 后端、模型推理、视频处理和数据库接口
+├── app.py                 # Flask 应用组装与兼容入口
+├── routes.py              # HTTP 路由、单工作线程视频队列
+├── inference.py           # 模型发现、设备选择、图片/视频推理
+├── storage.py             # SQLite 历史记录和结果文件存储
 ├── templates/index.html   # 页面结构
 ├── static/style.css       # 页面样式
 ├── static/app.js          # 上传、进度轮询、交互和历史记录
