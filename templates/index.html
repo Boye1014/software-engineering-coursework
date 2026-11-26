@@ -211,8 +211,45 @@
                     </div>
                     <button class="text-button" type="button" id="refreshHistory">刷新记录 ↻</button>
                 </div>
+
+                <div class="history-filters">
+                    <label class="filter-field">类型
+                        <select id="historyType">
+                            <option value="">全部</option>
+                            <option value="image">图片</option>
+                            <option value="video">视频</option>
+                        </select>
+                    </label>
+                    <label class="filter-field">起始日期
+                        <input type="date" id="historyFrom">
+                    </label>
+                    <label class="filter-field">截止日期
+                        <input type="date" id="historyTo">
+                    </label>
+                    <label class="filter-field filter-keyword">文件名
+                        <input type="search" id="historyKeyword" placeholder="输入原文件名关键词">
+                    </label>
+                    <button class="text-button filter-action" type="button" id="historySearch">筛选</button>
+                    <button class="text-button filter-action" type="button" id="historyReset">重置</button>
+                </div>
+
+                <div class="history-detail hidden" id="historyDetail">
+                    <div class="detail-head">
+                        <strong id="detailTitle">记录详情</strong>
+                        <button class="text-button" type="button" id="detailClose">关闭</button>
+                    </div>
+                    <div class="detail-grid" id="detailBody"></div>
+                </div>
+
                 <div class="history-list" id="historyList">
                     <div class="history-empty">正在读取历史记录…</div>
+                </div>
+
+                <div class="history-pager" id="historyPager" hidden>
+                    <button class="text-button" type="button" id="historyPrev">‹ 上一页</button>
+                    <span id="historyPageInfo">第 1 / 1 页</span>
+                    <button class="text-button" type="button" id="historyNext">下一页 ›</button>
+                    <span class="pager-total" id="historyTotal"></span>
                 </div>
             </section>
 

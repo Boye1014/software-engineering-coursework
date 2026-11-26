@@ -25,6 +25,18 @@
     const newTaskButton = document.getElementById("newTaskButton");
     const historyList = document.getElementById("historyList");
     const historyCount = document.getElementById("historyCount");
+    const historyType = document.getElementById("historyType");
+    const historyFrom = document.getElementById("historyFrom");
+    const historyTo = document.getElementById("historyTo");
+    const historyKeyword = document.getElementById("historyKeyword");
+    const historyPager = document.getElementById("historyPager");
+    const historyPageInfo = document.getElementById("historyPageInfo");
+    const historyTotal = document.getElementById("historyTotal");
+    const historyPrev = document.getElementById("historyPrev");
+    const historyNext = document.getElementById("historyNext");
+    const historyDetail = document.getElementById("historyDetail");
+    const detailTitle = document.getElementById("detailTitle");
+    const detailBody = document.getElementById("detailBody");
     const batchQueue = document.getElementById("batchQueue");
     const batchQueueSummary = document.getElementById("batchQueueSummary");
     const batchJobList = document.getElementById("batchJobList");
@@ -331,7 +343,7 @@
             updateVideoProgress(data);
             if (data.status === "complete") {
                 renderResult(data);
-                await loadHistory();
+                await loadHistory(1);
                 return;
             }
             if (data.status === "error") throw new Error(data.error || "视频检测失败。");
@@ -417,7 +429,7 @@
             batchPollTimer = window.setTimeout(pollVideoQueue, 500);
         } else {
             resultStatus.textContent = "BATCH COMPLETE";
-            await loadHistory();
+            await loadHistory(1);
         }
     };
 
@@ -491,7 +503,7 @@
                 return;
             }
             renderResult(data);
-            await loadHistory();
+            await loadHistory(1);
         } catch (error) {
             setLoading(false);
             resultStatus.textContent = "ERROR";
@@ -499,10 +511,69 @@
         }
     });
 
-    const renderHistory = (items) => {
-        historyCount.textContent = items.length;
+    const historyState = { page: 1, pageSize: 12, mediaType: "", dateFrom: "", dateTo: "", keyword: "" };
+
+    const historyQuery = () => {
+        const params = new URLSearchParams({
+            page: String(historyState.page),
+            page_size: String(historyState.pageSize),
+        });
+        if (historyState.mediaType) params.set("media_type", historyState.mediaType);
+        if (historyState.dateFrom) params.set("date_from", historyState.dateFrom);
+        if (historyState.dateTo) params.set("date_to", historyState.dateTo);
+        if (historyState.keyword) params.set("keyword", historyState.keyword);
+        return params.toString();
+    };
+
+    const showHistoryDetail = (record) => {
+        detailTitle.textContent = record.original_name || "记录详情";
+        const classes = record.selected_classes?.length ? record.selected_classes.join("、") : "全部类别";
+        const rows = [
+            ["记录编号", record.id],
+            ["媒体类型", record.media_type === "image" ? "图片" : "视频"],
+            ["检测时间", record.created_at],
+            ["置信度阈值", record.conf],
+            ["NMS / IoU 阈值", record.iou],
+            ["类别集合", classes],
+            ["检出数", record.detection_count],
+            ["耗时", `${record.elapsed_seconds} 秒`],
+            ["运行设备", record.device],
+            ["使用模型", record.model || "未记录"],
+            ["结果文件", record.result_exists ? "存在" : "已缺失"],
+        ];
+        detailBody.innerHTML = rows
+            .map(([label, value]) => `<div class="detail-row"><span>${escapeHtml(label)}</span><b>${escapeHtml(String(value))}</b></div>`)
+            .join("");
+        historyDetail.classList.remove("hidden");
+        historyDetail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+
+    const loadHistoryDetail = async (recordId) => {
+        try {
+            const response = await fetch(`/api/history/${encodeURIComponent(recordId)}`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "无法读取记录详情。");
+            showHistoryDetail(data);
+        } catch (error) {
+            showToast(error.message || "读取详情失败。");
+        }
+    };
+
+    const renderHistory = (payload) => {
+        const items = Array.isArray(payload) ? payload : payload.items || [];
+        const total = Array.isArray(payload) ? items.length : payload.total ?? items.length;
+        const page = Array.isArray(payload) ? 1 : payload.page || 1;
+        const pages = Array.isArray(payload) ? 1 : payload.pages || 1;
+
+        historyCount.textContent = total;
+        historyPageInfo.textContent = `第 ${page} / ${pages} 页`;
+        historyTotal.textContent = `共 ${total} 条`;
+        historyPager.hidden = pages <= 1;
+        historyPrev.disabled = page <= 1;
+        historyNext.disabled = page >= pages;
+
         if (!items.length) {
-            historyList.innerHTML = `<div class="history-empty">还没有检测记录，完成第一次任务后会显示在这里。</div>`;
+            historyList.innerHTML = `<div class="history-empty">没有符合条件的检测记录。</div>`;
             return;
         }
         historyList.innerHTML = items.map((item) => {
@@ -514,31 +585,70 @@
                 <div class="history-thumb">${thumbnail}</div>
                 <div class="history-info"><strong title="${escapeHtml(item.original_name)}">${escapeHtml(item.original_name)}</strong><span>${escapeHtml(item.created_at)} · ${escapeHtml(classes)} · ${escapeHtml(item.device)}${escapeHtml(model)}</span></div>
                 <div class="history-stat"><b>${item.detection_count}</b> ${isImage ? "个目标" : "个检测框"}</div>
-                <div class="history-actions"><a href="${item.result_url}" target="_blank" rel="noreferrer">查看</a><a href="${item.download_url}" download>下载</a><button type="button" data-delete="${item.id}">删除</button></div>
+                <div class="history-actions"><a href="${item.result_url}" target="_blank" rel="noreferrer">查看</a><a href="${item.download_url}" download>下载</a><button type="button" data-detail="${item.id}">详情</button><button type="button" data-delete="${item.id}">删除</button></div>
             </article>`;
         }).join("");
+        historyList.querySelectorAll("[data-detail]").forEach((button) => {
+            button.addEventListener("click", () => loadHistoryDetail(button.dataset.detail));
+        });
         historyList.querySelectorAll("[data-delete]").forEach((button) => {
             button.addEventListener("click", async () => {
                 if (!window.confirm("确定删除这条检测记录吗？")) return;
                 const response = await fetch(`/api/history/${button.dataset.delete}`, { method: "DELETE" });
                 if (response.ok) {
                     showToast("记录已删除。");
+                    historyDetail.classList.add("hidden");
                     loadHistory();
                 } else showToast("删除失败。");
             });
         });
     };
 
-    const loadHistory = async () => {
+    const loadHistory = async (page) => {
+        if (typeof page === "number" && page > 0) historyState.page = page;
         try {
-            const response = await fetch("/api/history");
-            renderHistory(await response.json());
+            const response = await fetch(`/api/history?${historyQuery()}`);
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "历史记录读取失败。");
+            if (!Array.isArray(data) && data.items?.length === 0 && data.page > 1) {
+                historyState.page = data.page - 1;
+                return loadHistory();
+            }
+            renderHistory(data);
         } catch (_error) {
             historyList.innerHTML = `<div class="history-empty">历史记录暂时无法读取。</div>`;
+            historyPager.hidden = true;
         }
     };
 
-    document.getElementById("refreshHistory").addEventListener("click", loadHistory);
+    const applyHistoryFilters = () => {
+        historyState.mediaType = historyType.value;
+        historyState.dateFrom = historyFrom.value;
+        historyState.dateTo = historyTo.value;
+        historyState.keyword = historyKeyword.value.trim();
+        historyState.page = 1;
+        loadHistory();
+    };
+
+    document.getElementById("refreshHistory").addEventListener("click", () => loadHistory());
+    document.getElementById("historySearch").addEventListener("click", applyHistoryFilters);
+    document.getElementById("historyReset").addEventListener("click", () => {
+        historyType.value = "";
+        historyFrom.value = "";
+        historyTo.value = "";
+        historyKeyword.value = "";
+        applyHistoryFilters();
+    });
+    historyType.addEventListener("change", applyHistoryFilters);
+    historyKeyword.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            applyHistoryFilters();
+        }
+    });
+    historyPrev.addEventListener("click", () => loadHistory(Math.max(1, historyState.page - 1)));
+    historyNext.addEventListener("click", () => loadHistory(historyState.page + 1));
+    document.getElementById("detailClose").addEventListener("click", () => historyDetail.classList.add("hidden"));
     document.getElementById("historyNav").addEventListener("click", () => document.getElementById("historyPanel").scrollIntoView({ behavior: "smooth" }));
     newTaskButton.addEventListener("click", () => {
         clearSelectedFile();
