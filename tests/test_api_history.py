@@ -12,12 +12,15 @@ from conftest import IMAGE_CAR, IMAGE_MAN_BICYCLE
 def test_history_empty_initially(client):
     response = client.get("/api/history")
     assert response.status_code == 200
-    assert response.get_json() == []
+    payload = response.get_json()
+    assert payload["items"] == []
+    assert payload["total"] == 0
+    assert payload["page"] == 1
 
 
 def test_history_records_image_detection(client, post_image):
     payload = post_image(IMAGE_MAN_BICYCLE, conf="0.35").get_json()
-    history = client.get("/api/history").get_json()
+    history = client.get("/api/history").get_json()["items"]
 
     assert len(history) == 1
     record = history[0]
@@ -41,7 +44,7 @@ def test_history_records_video_detection(client, short_clip, wait_job):
     job_id = response.get_json()["job_id"]
     wait_job(job_id)
 
-    history = client.get("/api/history").get_json()
+    history = client.get("/api/history").get_json()["items"]
     assert len(history) == 1
     assert history[0]["media_type"] == "video"
     assert history[0]["id"] == job_id
@@ -76,12 +79,12 @@ def test_history_is_newest_first(client):
                     "YOLO11n",
                 ),
             )
-    history = client.get("/api/history").get_json()
+    history = client.get("/api/history").get_json()["items"]
     assert [record["id"] for record in history] == ["new", "old"]
 
 
-def test_history_limits_to_fifty(client, post_image):
-    """超过 50 条时只返回最近 50 条。"""
+def test_history_page_size_is_capped(client, post_image):
+    """page_size 超过上限时按 50 条截断，总数仍如实返回。"""
     with sqlite3.connect(app_module.DATABASE_PATH) as connection:
         for index in range(55):
             connection.execute(
@@ -106,7 +109,11 @@ def test_history_limits_to_fifty(client, post_image):
                     "YOLO11n",
                 ),
             )
-    assert len(client.get("/api/history").get_json()) == 50
+    payload = client.get("/api/history?page=1&page_size=999").get_json()
+    assert payload["page_size"] == 50
+    assert len(payload["items"]) == 50
+    assert payload["total"] == 55
+    assert payload["pages"] == 2
 
 
 def test_delete_history_record(client, sandbox, post_image):
@@ -119,7 +126,7 @@ def test_delete_history_record(client, sandbox, post_image):
     assert response.status_code == 200
     assert response.get_json()["ok"] is True
 
-    assert client.get("/api/history").get_json() == []
+    assert client.get("/api/history").get_json()["items"] == []
     assert not stored.exists(), "删除记录时应同时清理结果文件"
 
 
@@ -143,5 +150,6 @@ def test_history_survives_missing_result_file(client, sandbox, post_image):
 
     response = client.get("/api/history")
     assert response.status_code == 200
-    assert len(response.get_json()) == 1
-    assert payload["id"] == response.get_json()[0]["id"]
+    body = response.get_json()
+    assert len(body["items"]) == 1
+    assert payload["id"] == body["items"][0]["id"]

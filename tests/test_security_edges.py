@@ -114,4 +114,4 @@ def test_two_image_requests_do_not_interfere(client, post_image):
     second = post_image(IMAGE_CAR, conf="0.3").get_json()
     assert first["id"] != second["id"]
     assert first["result_url"] != second["result_url"]
-    assert len(client.get("/api/history").get_json()) == 2
+    assert client.get("/api/history").get_json()["total"] == 2

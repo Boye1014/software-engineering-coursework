@@ -61,6 +61,39 @@ def _refresh_queue_positions() -> None:
                 job["queue_position"] = position
 
 
+DEFAULT_PAGE_SIZE = 12
+MAX_PAGE_SIZE = 50
+
+
+def _positive_int(raw: str | None, fallback: int) -> int:
+    """把查询参数解析成正整数，非法值退回默认值。"""
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return fallback
+    return value if value > 0 else fallback
+
+
+def _parse_date(raw: str | None) -> str | None | bool:
+    """解析 YYYY-MM-DD；空值返回 None，格式错误返回 False 供路由报错。"""
+    if not raw or not str(raw).strip():
+        return None
+    text = str(raw).strip()
+    try:
+        datetime.strptime(text, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return text
+
+
+def _attach_urls(record: dict[str, object]) -> dict[str, object]:
+    """把结果文件名替换为可访问的媒体与下载地址。"""
+    filename = record.pop("result_filename")
+    record["result_url"] = f"/media/{filename}"
+    record["download_url"] = f"/download/{filename}"
+    return record
+
+
 def _process_video_task(task: VideoTask) -> None:
     started = time.perf_counter()
 
@@ -240,13 +273,53 @@ def register_routes(app: Flask, runtime_config: Callable[[], RuntimeConfig]) -> 
 
     @app.get("/api/history")
     def history():
+        """分页返回检测记录，支持按类型、日期区间与文件名关键词筛选。"""
         config = runtime_config()
-        items = storage.list_detections(config["DATABASE_PATH"])
-        for item in items:
-            filename = item.pop("result_filename")
-            item["result_url"] = f"/media/{filename}"
-            item["download_url"] = f"/download/{filename}"
-        return jsonify(items)
+        page = _positive_int(request.args.get("page"), 1)
+        page_size = min(_positive_int(request.args.get("page_size"), DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE)
+
+        media_type = (request.args.get("media_type") or "").strip() or None
+        if media_type not in (None, "image", "video"):
+            return jsonify({"error": "media_type 只能是 image 或 video。"}), 400
+
+        date_from = _parse_date(request.args.get("date_from"))
+        date_to = _parse_date(request.args.get("date_to"))
+        if date_from is False or date_to is False:
+            return jsonify({"error": "日期格式应为 YYYY-MM-DD。"}), 400
+
+        keyword = (request.args.get("keyword") or "").strip() or None
+
+        items, total = storage.query_detections(
+            config["DATABASE_PATH"],
+            page=page,
+            page_size=page_size,
+            media_type=media_type,
+            date_from=date_from,
+            date_to=date_to,
+            keyword=keyword,
+        )
+        pages = max((total + page_size - 1) // page_size, 1)
+        return jsonify(
+            {
+                "items": [_attach_urls(item) for item in items],
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "pages": pages,
+            }
+        )
+
+    @app.get("/api/history/<record_id>")
+    def history_detail(record_id: str):
+        """返回单条检测记录的详情；结果文件缺失时以标记说明。"""
+        config = runtime_config()
+        record = storage.get_detection(config["DATABASE_PATH"], record_id)
+        if record is None:
+            return jsonify({"error": "记录不存在。"}), 404
+        filename = str(record["result_filename"])
+        record = _attach_urls(record)
+        record["result_exists"] = storage.result_path(config["RESULT_DIR"], filename) is not None
+        return jsonify(record)
 
     @app.delete("/api/history/<record_id>")
     def delete_history(record_id: str):
